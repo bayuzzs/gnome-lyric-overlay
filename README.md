@@ -1,74 +1,136 @@
-# GNOME Lyric Overlay
+<div align="center">
+
+# 💿 GNOME Lyric Overlay
+
+**Live synchronized lyrics for GNOME Shell — as a floating vinyl player card or a minimal top-bar indicator.**
 
 [![CI](https://github.com/bayuzzs/gnome-lyric-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/bayuzzs/gnome-lyric-overlay/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/bayuzzs/gnome-lyric-overlay)](https://github.com/bayuzzs/gnome-lyric-overlay/releases/latest)
+[![GNOME Shell](https://img.shields.io/badge/GNOME%20Shell-46--51-4a86cf?logo=gnome&logoColor=white)](#compatibility)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A native GNOME Shell extension that displays synchronized live lyrics for MPRIS-compatible music players as either a **Floating Desktop Overlay** or a **Fixed Top-Bar Indicator**.
+[Features](#features) · [Quick Install](#quick-install) · [Controls](#controls--shortcuts) · [Customization](#customization) · [Compatibility](#compatibility) · [Build from Source](#build-from-source)
 
-Built for **GNOME Shell 46–51**, it supports Spotify Desktop, Spotify Web, YouTube Music Web, Apple Music Web, and other MPRIS players. Lyrics are fetched from LRCLIB and cached locally alongside album cover art.
+</div>
+
+<!-- Drop your demo GIF, video, or screenshot here once recorded:
+<p align="center">
+  <img src="assets/demo.gif" alt="GNOME Lyric Overlay demo" width="760" />
+</p>
+-->
+
+---
 
 ## Features
 
-- **Dual Display Mode**: Switch seamlessly between **Floating Overlay** (always-on-top on Wayland) and **Fixed Top Bar** via the tray menu or a keyboard shortcut.
-- **3-Tier Floating Player Card**:
-  - **Top**: GPU-spinning vinyl record with circular album cover art + song title, artist, and album name.
-  - **Middle**: Full-width clipped lyrics conveyor with **1, 2, or 3 configurable lines** and smooth bottom-to-top vertical glide transitions.
-  - **Bottom**: Interactive progress seekbar with live timestamps (click or scrub to seek) + centered MPRIS playback controls (`Previous`, `Play/Pause`, `Next`).
-- **Fixed Width + Live Edge Resizing**: Preserves overlay width to eliminate horizontal layout shifting; drag the left or right edge directly on screen (`↔` cursor) to resize between `280px` and `1600px` without opening Preferences.
-- **Drag & Relative Monitor Positioning**: Drag freely when unlocked; saves relative monitor coordinates (`x-ratio` / `y-ratio`) with workarea clamping and quick presets (`Bottom Center`, `Top Center`, `Bottom Left`, `Bottom Right`, `Center`).
-- **Lock / Click-Through Mode**: When locked, pointer clicks pass straight through to windows underneath.
-- **Smart Auto-Hide**: Always hides when idle or in GNOME Overview, with optional auto-hide during fullscreen windows and while paused.
-- **Customizable Appearance**: Background opacity slider (`0%` pure subtitle text with drop shadow up to `100%` dark translucent pill), font size, active/secondary colors, alignment, lyrics timing offset, and toggles for vinyl, track info, progress bar, and controls.
-- **Local Cache Management**: Caches LRCLIB lyrics and cover artwork locally with a **Clear Cache** button in Preferences.
+### 3-Tier Floating Player Card
 
-## Compatibility
+- **Spinning Vinyl & Track Header** — GPU-accelerated spinning vinyl record displaying the current track's album artwork alongside song title, artist, and album name.
+- **Smooth Clipped Lyrics Conveyor** — Displays **1, 2, or 3 synchronized lines** with fluid bottom-to-top vertical glide transitions and preserved width so lines never jump or shift horizontally.
+- **Interactive Seekbar & Playback Controls** — Click or scrub the progress bar to seek with live timestamps, plus centered `Previous`, `Play/Pause`, and `Next` MPRIS controls.
 
-| Target                | Status        |
-| --------------------- | ------------- |
-| GNOME Shell 46–51     | Supported     |
-| Fedora / Ubuntu GNOME | Supported     |
-| Spotify Desktop       | Supported     |
-| Spotify Web           | Supported     |
-| YouTube Music Web     | Supported     |
-| Apple Music Web       | Supported     |
-| Other MPRIS players   | Best effort   |
-| Non-GNOME desktops    | Not supported |
+### Built for Daily Workflow
 
-## Install
+- **Floating ↔ Top Bar Dual Mode** — Switch instantaneously between an always-on-top floating overlay and a compact GNOME top-bar indicator via the tray menu or a keyboard shortcut.
+- **Live Edge Resizing** — Hover the left or right edge of the overlay (`↔` cursor) and drag directly on screen to resize between `280px` and `1600px` without opening Preferences.
+- **Drag & Relative Monitor Positioning** — Move the overlay anywhere on screen; saves monitor-relative coordinates (`x`/`y` ratios) with automatic workarea clamping and 5 quick position presets.
+- **True Click-Through Lock Mode** — Lock the overlay so pointer events pass straight through to windows underneath — keep coding or browsing right behind your lyrics.
+- **Smart Auto-Hide** — Automatically hides when idle or in GNOME Overview, with optional auto-hide for fullscreen windows and paused playback.
+- **No Login Required** — Reads playback state locally over MPRIS D-Bus, fetches synced lyrics from [LRCLIB](https://lrclib.net), and caches both lyrics and cover art locally.
 
-Quick install (no Node.js or build tools required):
+---
+
+## Quick Install
+
+Install the latest release in one command (no Node.js or build tools required):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/bayuzzs/gnome-lyric-overlay/main/scripts/install.sh | bash
 ```
 
-On Wayland, **log out and log back in** once after installing so GNOME Shell loads the extension (it will start automatically).
+> [!NOTE]
+> On **Wayland**, log out and log back in once after installing so GNOME Shell loads the new extension. The installer pre-enables it automatically.
 
-Open preferences:
+Open preferences anytime:
 
 ```bash
 gnome-extensions prefs lyric-overlay@bayuzzs.github.io
 ```
 
-Update to the latest release by re-running the install command above.
+To **update** to the latest release, simply re-run the install command above.
 
-Uninstall:
+<details>
+<summary>Uninstall</summary>
 
 ```bash
 gnome-extensions disable lyric-overlay@bayuzzs.github.io
 rm -rf ~/.local/share/gnome-shell/extensions/lyric-overlay@bayuzzs.github.io
+rm -rf ~/.cache/lyric-overlay
 ```
 
-## Keyboard Shortcuts
+</details>
 
-All shortcuts can be customized or disabled in Preferences:
+---
+
+## Controls & Shortcuts
+
+### On-Screen Interactions (Floating Mode)
+
+| Interaction              | Action                                                              |
+| ------------------------ | ------------------------------------------------------------------- |
+| **Drag card**            | Reposition overlay anywhere on the monitor (when unlocked)          |
+| **Drag left/right edge** | Live-resize overlay width (`280px–1600px`)                          |
+| **Click / drag seekbar** | Seek track position (uses MPRIS `SetPosition` with `Seek` fallback) |
+| **Playback buttons**     | Previous track, Play/Pause, Next track                              |
+| **Top-bar tray icon**    | Quick toggle for Mode, Lock, Visibility, and Preferences            |
+
+### Global Keyboard Shortcuts
+
+All shortcuts can be remapped or disabled in Preferences:
 
 | Shortcut        | Action                            |
 | --------------- | --------------------------------- |
 | `<Super><Alt>m` | Switch Floating Overlay ↔ Top Bar |
-| `<Super><Alt>l` | Toggle Lock (Click-through)       |
+| `<Super><Alt>l` | Toggle Lock (Click-through mode)  |
 | `<Super><Alt>h` | Toggle Show / Hide Lyrics         |
+
+---
+
+## Customization
+
+Everything is configurable through the native GTK4 / Libadwaita Preferences window:
+
+| Page           | Configurable Options                                                                                                                                                                                                                       |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Display**    | Display mode, lyric line count (`1–3`), position presets, target monitor, width (`280–1600px`), fixed-width toggle, top-bar placement & max width, fallback mode                                                                           |
+| **Appearance** | Background opacity (`0%` pure subtitle text with drop shadow → `100%` translucent card), font size (`12–36px`), text color & secondary line opacity, alignment, glide animation, toggles for vinyl, track info, progress bar, and controls |
+| **Behavior**   | Timing offset (`-5000ms` to `+5000ms`), auto-hide on fullscreen / pause, player priority, browser service mode, global shortcuts, local cache & **Clear Cache**                                                                            |
+
+---
+
+## Compatibility
+
+| Target                 | Status         |
+| ---------------------- | -------------- |
+| GNOME Shell 46–51      | ✅ Supported   |
+| Wayland & X11          | ✅ Supported   |
+| Fedora / Ubuntu / Arch | ✅ Supported   |
+| Spotify Desktop        | ✅ Supported   |
+| Spotify Web            | ✅ Supported   |
+| YouTube Music Web      | ✅ Supported   |
+| Apple Music Web        | ✅ Supported   |
+| Other MPRIS players    | 🟡 Best effort |
+| Non-GNOME desktops     | ❌ Unsupported |
+
+---
+
+## Privacy & Local Cache
+
+- **Zero telemetry & zero accounts** — No analytics, no Spotify credentials, and no window/browser scraping.
+- **External requests** — Track metadata (`title`, `artist`, `album`, `duration`) is queried against [LRCLIB](https://lrclib.net) to fetch synchronized `.lrc` lyrics; cover artwork URLs provided by MPRIS are fetched only to render the vinyl disc.
+- **Local storage** — Lyrics and cover art are cached under `~/.cache/lyric-overlay/` and can be wiped anytime via **Preferences → Behavior → Clear Cache**.
+
+---
 
 ## Build from Source
 
@@ -83,14 +145,10 @@ npm run install:local
 gnome-extensions enable lyric-overlay@bayuzzs.github.io
 ```
 
-The generated bundle is written to `dist/lyric-overlay@bayuzzs.github.io.zip`.
+`npm run verify` runs metadata & GSettings schema validation, architecture boundary checks, Prettier, ESLint, TypeScript typechecking, the Vitest suite, and builds `dist/lyric-overlay@bayuzzs.github.io.zip`.
 
-## Privacy
+---
 
-GNOME Lyric Overlay collects no telemetry and requires no account login. To fetch lyrics, track metadata (title, artist, album, duration) is sent to [LRCLIB](https://lrclib.net); album art URLs exposed by MPRIS are cached locally in `~/.cache/lyric-overlay/`.
+## License
 
-## Credits & License
-
-Licensed under the [MIT License](LICENSE).
-
-MPRIS player profile/stability handling, interpolated sync clock, and LRCLIB lookup/cache modules are adapted from [gnome-lyricbar](https://github.com/fikrilal/gnome-lyricbar) (MIT License, Copyright (c) 2026 Ahmad Fikril).
+Released under the [MIT License](LICENSE).
