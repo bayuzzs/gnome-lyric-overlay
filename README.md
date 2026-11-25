@@ -1,5 +1,9 @@
 # GNOME Lyric Overlay
 
+[![CI](https://github.com/bayuzzs/gnome-lyric-overlay/actions/workflows/ci.yml/badge.svg)](https://github.com/bayuzzs/gnome-lyric-overlay/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/bayuzzs/gnome-lyric-overlay)](https://github.com/bayuzzs/gnome-lyric-overlay/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A native GNOME Shell extension that displays synchronized live lyrics for MPRIS-compatible music players as either a **Floating Desktop Overlay** or a **Fixed Top-Bar Indicator**.
 
 Built for **GNOME Shell 46–51**, it supports Spotify Desktop, Spotify Web, YouTube Music Web, Apple Music Web, and other MPRIS players. Lyrics are fetched from LRCLIB and cached locally alongside album cover art.
