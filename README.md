@@ -13,11 +13,9 @@
 
 </div>
 
-<!-- Drop your demo GIF, video, or screenshot here once recorded:
 <p align="center">
-  <img src="assets/demo.gif" alt="GNOME Lyric Overlay demo" width="760" />
+  <img src="assets/hero-banner.png" alt="GNOME Lyric Overlay floating over VS Code on GNOME Shell" width="100%" />
 </p>
--->
 
 ---
 
