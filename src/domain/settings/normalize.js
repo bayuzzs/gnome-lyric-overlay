@@ -93,6 +93,7 @@ export function normalizeSettings(raw) {
     floatingShowVinyl: normalizeBoolean(raw.floatingShowVinyl, true),
     floatingShowTrackInfo: normalizeBoolean(raw.floatingShowTrackInfo, true),
     floatingShowControls: normalizeBoolean(raw.floatingShowControls, true),
+    floatingShowProgress: normalizeBoolean(raw.floatingShowProgress, true),
     floatingFontSize: clampInt(
       raw.floatingFontSize,
       MIN_FLOATING_FONT_SIZE,

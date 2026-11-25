@@ -21,6 +21,7 @@ import { snapshotsEqual } from './player-mapping.js';
  *   readPosition(callback: PlayerPositionCallback): void,
  *   refreshProperties(): void,
  *   invokeMethod?(action: import('../../domain/mpris/types.js').PlaybackAction): void,
+ *   seekTo?(trackId: string | null, targetPositionMs: number, currentPositionMs: number | null): void,
  *   start(): void,
  * }>} RawPlayerProxy
  *
@@ -150,6 +151,16 @@ export class StablePlayerProxy {
    */
   invokeMethod(action) {
     this.#rawProxy.invokeMethod?.(action);
+  }
+
+  /**
+   * @param {string | null} trackId
+   * @param {number} targetPositionMs
+   * @param {number | null} currentPositionMs
+   * @returns {void}
+   */
+  seekTo(trackId, targetPositionMs, currentPositionMs) {
+    this.#rawProxy.seekTo?.(trackId, targetPositionMs, currentPositionMs);
   }
 
   /**

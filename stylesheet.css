@@ -130,10 +130,47 @@
   font-weight: 500;
 }
 
-/* Bottom Tier: Centered Playback Controls */
-.lyric-overlay-controls {
+/* Bottom Tier: Interactive Progress Seekbar + Centered Playback Controls */
+.lyric-overlay-progress-row {
   spacing: 10px;
   padding-top: 4px;
+}
+
+.lyric-overlay-progress-time {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+  min-width: 32px;
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.75);
+}
+
+.lyric-overlay-progress-track-container {
+  height: 16px;
+}
+
+.lyric-overlay-progress-bg {
+  height: 4px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.lyric-overlay-progress-fill {
+  height: 4px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+.lyric-overlay-progress-knob {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background-color: #ffffff;
+  box-shadow: 0px 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.lyric-overlay-controls {
+  spacing: 10px;
+  padding-top: 2px;
 }
 
 .lyric-overlay-control-button {

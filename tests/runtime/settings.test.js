@@ -20,6 +20,7 @@ describe('SettingsAdapter', () => {
       'floating-show-vinyl': true,
       'floating-show-track-info': true,
       'floating-show-controls': true,
+      'floating-show-progress': true,
       'floating-font-size': 18,
       'floating-bg-opacity': 55,
       'floating-animate': true,

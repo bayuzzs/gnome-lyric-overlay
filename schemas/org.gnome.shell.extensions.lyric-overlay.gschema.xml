@@ -74,6 +74,11 @@
       <summary>Show playback controls</summary>
       <description>Display Previous, Play/Pause, and Next controls on the floating overlay.</description>
     </key>
+    <key name="floating-show-progress" type="b">
+      <default>true</default>
+      <summary>Show playback progress bar</summary>
+      <description>Display an interactive playback progress bar and timestamps on the floating overlay.</description>
+    </key>
     <key name="floating-font-size" type="i">
       <default>18</default>
       <range min="12" max="36"/>

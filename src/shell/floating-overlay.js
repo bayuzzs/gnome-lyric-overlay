@@ -15,6 +15,12 @@ import {
   resolveMonitorIndex,
 } from '../domain/display/floating-position.js';
 import {
+  computeProgressRatio,
+  computeSeekFillMetrics,
+  computeSeekPositionMs,
+  formatTimeMs,
+} from '../domain/display/progress.js';
+import {
   buildFloatingContainerStyle,
   buildFloatingLineStyle,
   buildVinylCoverStyle,
@@ -27,6 +33,7 @@ import {
  * @typedef {(xRatio: number, yRatio: number, monitorIndex: number) => void} PositionCommittedCallback
  * @typedef {(width: number, xRatio: number, yRatio: number, monitorIndex: number) => void} WidthCommittedCallback
  * @typedef {(action: PlaybackAction) => void} PlaybackActionCallback
+ * @typedef {(positionMs: number) => void} SeekCommittedCallback
  */
 
 const LINE_TRANSITION_MS = 320;
@@ -35,6 +42,9 @@ const VINYL_SPIN_DURATION_MS = 12_000;
 const VINYL_SPIN_TRANSITION_NAME = 'lyric-overlay-vinyl-spin';
 const MIN_OVERLAY_WIDTH = 280;
 const MAX_OVERLAY_WIDTH = 1600;
+const PROGRESS_TRACK_Y = 6;
+const PROGRESS_KNOB_SIZE = 10;
+const PROGRESS_KNOB_Y = 3;
 
 class FloatingOverlayBase extends St.BoxLayout {
   /** @override */
@@ -87,6 +97,19 @@ class FloatingOverlayBase extends St.BoxLayout {
     /** @type {number} */
     this._resizeMonitorIndex = 0;
 
+    /** @type {boolean} */
+    this._scrubbing = false;
+    /** @type {number} */
+    this._scrubTargetMs = 0;
+    /** @type {number} */
+    this._progressPositionMs = 0;
+    /** @type {number | null} */
+    this._progressDurationMs = null;
+    /** @type {string} */
+    this._lastElapsedText = '';
+    /** @type {string} */
+    this._lastDurationText = '';
+
     /** @type {number} */
     this._stageCaptureId = 0;
     /** @type {Array<[any, number]>} */
@@ -97,6 +120,8 @@ class FloatingOverlayBase extends St.BoxLayout {
     this._onWidthCommitted = null;
     /** @type {PlaybackActionCallback | null} */
     this._onPlaybackAction = null;
+    /** @type {SeekCommittedCallback | null} */
+    this._onSeekCommitted = null;
 
     // Left Edge Resize Handle
     this._leftResizeHandle = new St.Widget({
@@ -186,7 +211,65 @@ class FloatingOverlayBase extends St.BoxLayout {
     this._lyricsTrack.add_child(this._nextLabel);
     this._lyricsViewport.add_child(this._lyricsTrack);
 
-    // 3. Bottom Tier: Centered Playback Controls (Prev / Play-Pause / Next)
+    // 3. Progress Seekbar (Elapsed | Interactive Track | Duration)
+    this._progressRow = new St.BoxLayout({
+      style_class: 'lyric-overlay-progress-row',
+      x_expand: true,
+      y_align: Clutter.ActorAlign.CENTER,
+    });
+    setBoxOrientation(this._progressRow, Clutter.Orientation.HORIZONTAL);
+
+    this._elapsedLabel = new St.Label({
+      text: '0:00',
+      style_class: 'lyric-overlay-progress-time',
+      y_align: Clutter.ActorAlign.CENTER,
+    });
+    this._durationLabel = new St.Label({
+      text: '0:00',
+      style_class: 'lyric-overlay-progress-time',
+      y_align: Clutter.ActorAlign.CENTER,
+    });
+
+    this._progressTrackContainer = new St.Widget({
+      style_class: 'lyric-overlay-progress-track-container',
+      reactive: true,
+      track_hover: true,
+      x_expand: true,
+      y_align: Clutter.ActorAlign.CENTER,
+    });
+    this._progressTrackContainer.set_height(16);
+    applyActorCursor(this._progressTrackContainer, Clutter.CursorType?.POINTER);
+
+    this._progressTrackBg = new St.Widget({
+      style_class: 'lyric-overlay-progress-bg',
+    });
+    this._progressTrackBg.set_position(0, PROGRESS_TRACK_Y);
+    this._progressTrackBg.set_height(4);
+
+    this._progressFill = new St.Widget({
+      style_class: 'lyric-overlay-progress-fill',
+    });
+    this._progressFill.set_position(0, PROGRESS_TRACK_Y);
+    this._progressFill.set_height(4);
+    this._progressFill.set_width(0);
+
+    this._progressKnob = new St.Widget({
+      style_class: 'lyric-overlay-progress-knob',
+    });
+    this._progressKnob.set_position(0, PROGRESS_KNOB_Y);
+    this._progressKnob.set_width(PROGRESS_KNOB_SIZE);
+    this._progressKnob.set_height(PROGRESS_KNOB_SIZE);
+
+    this._progressTrackContainer.add_child(this._progressTrackBg);
+    this._progressTrackContainer.add_child(this._progressFill);
+    this._progressTrackContainer.add_child(this._progressKnob);
+
+    this._progressRow.add_child(this._elapsedLabel);
+    this._progressRow.add_child(this._progressTrackContainer);
+    this._progressRow.add_child(this._durationLabel);
+    this._progressRow.visible = false;
+
+    // 4. Bottom Tier: Centered Playback Controls (Prev / Play-Pause / Next)
     this._controlsBox = new St.BoxLayout({
       style_class: 'lyric-overlay-controls',
       x_align: Clutter.ActorAlign.CENTER,
@@ -223,6 +306,7 @@ class FloatingOverlayBase extends St.BoxLayout {
 
     this._bodyColumn.add_child(this._headerRow);
     this._bodyColumn.add_child(this._lyricsViewport);
+    this._bodyColumn.add_child(this._progressRow);
     this._bodyColumn.add_child(this._controlsBox);
 
     // Right Edge Resize Handle
@@ -266,6 +350,19 @@ class FloatingOverlayBase extends St.BoxLayout {
        */
       (_actor, event) => this._handleResizeStart('right', event),
     );
+    this._connect(
+      this._progressTrackContainer,
+      'button-press-event',
+      /**
+       * @param {unknown} _actor
+       * @param {any} event
+       * @returns {boolean}
+       */
+      (_actor, event) => this._handleSeekStart(event),
+    );
+    this._connect(this._progressTrackContainer, 'notify::width', () => {
+      this._redrawProgressBar();
+    });
   }
 
   /**
@@ -290,6 +387,46 @@ class FloatingOverlayBase extends St.BoxLayout {
    */
   setPlaybackActionHandler(callback) {
     this._onPlaybackAction = callback;
+  }
+
+  /**
+   * @param {SeekCommittedCallback | null} callback
+   * @returns {void}
+   */
+  setSeekCommittedHandler(callback) {
+    this._onSeekCommitted = callback;
+  }
+
+  /**
+   * Lightweight 10Hz fast-path to update the seekbar and timestamps without
+   * triggering a full overlay render or restarting lyric animations.
+   *
+   * @param {number | null} positionMs
+   * @param {number | null} durationMs
+   * @returns {void}
+   */
+  updateProgress(positionMs, durationMs) {
+    if (!this._progressRow) {
+      return;
+    }
+
+    const hasDuration =
+      typeof durationMs === 'number' && Number.isFinite(durationMs) && durationMs > 0;
+    const showRow = this._lastViewModel?.showProgress === true && hasDuration;
+    this._progressRow.visible = showRow;
+    this._progressDurationMs = hasDuration ? durationMs : null;
+
+    if (!showRow) {
+      return;
+    }
+
+    if (this._scrubbing) {
+      return;
+    }
+
+    this._progressPositionMs =
+      typeof positionMs === 'number' && Number.isFinite(positionMs) ? Math.max(0, positionMs) : 0;
+    this._redrawProgressBar();
   }
 
   /**
@@ -337,6 +474,9 @@ class FloatingOverlayBase extends St.BoxLayout {
     }
     if (this._rightResizeHandle) {
       this._rightResizeHandle.reactive = interactive;
+    }
+    if (this._progressTrackContainer) {
+      this._progressTrackContainer.reactive = interactive;
     }
     if (this._prevButton) {
       this._prevButton.reactive = interactive;
@@ -421,6 +561,13 @@ class FloatingOverlayBase extends St.BoxLayout {
       style: buildFloatingLineStyle({ ...commonStyle, role: 'secondary' }),
     });
 
+    // Progress visibility (fast-path updateProgress populates geometry/times)
+    if (this._progressRow) {
+      const hasDuration =
+        typeof this._progressDurationMs === 'number' && this._progressDurationMs > 0;
+      this._progressRow.visible = viewModel.showProgress && hasDuration;
+    }
+
     // Bottom Tier: Playback controls
     this._controlsBox.visible = viewModel.showControls;
     if (this._playPauseIcon) {
@@ -484,7 +631,94 @@ class FloatingOverlayBase extends St.BoxLayout {
    * @returns {boolean}
    */
   _isInteracting() {
-    return this._dragging || this._resizingEdge !== null;
+    return this._dragging || this._resizingEdge !== null || this._scrubbing;
+  }
+
+  /**
+   * @returns {void}
+   */
+  _redrawProgressBar() {
+    if (
+      !this._progressRow?.visible ||
+      !this._progressTrackContainer ||
+      !this._progressTrackBg ||
+      !this._progressFill ||
+      !this._progressKnob ||
+      !this._elapsedLabel ||
+      !this._durationLabel ||
+      this._progressDurationMs === null
+    ) {
+      return;
+    }
+
+    const activePosMs = this._scrubbing ? this._scrubTargetMs : this._progressPositionMs;
+    const elapsedText = formatTimeMs(activePosMs);
+    if (elapsedText !== this._lastElapsedText) {
+      this._lastElapsedText = elapsedText;
+      this._elapsedLabel.set_text(elapsedText);
+    }
+
+    const durationText = formatTimeMs(this._progressDurationMs);
+    if (durationText !== this._lastDurationText) {
+      this._lastDurationText = durationText;
+      this._durationLabel.set_text(durationText);
+    }
+
+    const trackWidth = Math.round(this._progressTrackContainer.get_width());
+    if (trackWidth <= 0) {
+      return;
+    }
+
+    const ratio = computeProgressRatio(activePosMs, this._progressDurationMs);
+    const { fillWidth, knobX } = computeSeekFillMetrics(ratio, trackWidth, PROGRESS_KNOB_SIZE);
+
+    this._progressTrackBg.set_width(trackWidth);
+    this._progressFill.set_width(fillWidth);
+    this._progressKnob.set_position(knobX, PROGRESS_KNOB_Y);
+  }
+
+  /**
+   * @param {any} event
+   * @returns {boolean}
+   */
+  _handleSeekStart(event) {
+    if (this._locked || this._progressDurationMs === null || this._progressDurationMs <= 0) {
+      return Clutter.EVENT_PROPAGATE;
+    }
+
+    const button = typeof event?.get_button === 'function' ? event.get_button() : 0;
+    if (button !== Clutter.BUTTON_PRIMARY) {
+      return Clutter.EVENT_PROPAGATE;
+    }
+
+    const [stageX] = event.get_coords();
+    this._scrubbing = true;
+    this._dragging = false;
+    this._resizingEdge = null;
+    this._updateScrubPosition(stageX);
+    applyActorCursor(this, Clutter.CursorType?.POINTER);
+    this._acquireInteractionGrab();
+    return Clutter.EVENT_STOP;
+  }
+
+  /**
+   * @param {number} stageX
+   * @returns {void}
+   */
+  _updateScrubPosition(stageX) {
+    if (!this._progressTrackContainer || this._progressDurationMs === null) {
+      return;
+    }
+
+    const [trackLeftX] = this._progressTrackContainer.get_transformed_position();
+    const trackWidth = this._progressTrackContainer.get_width();
+    this._scrubTargetMs = computeSeekPositionMs({
+      pointerX: stageX,
+      trackLeftX,
+      trackWidth,
+      durationMs: this._progressDurationMs,
+    });
+    this._redrawProgressBar();
   }
 
   /**
@@ -809,7 +1043,9 @@ class FloatingOverlayBase extends St.BoxLayout {
       }
 
       const [stageX, stageY] = event.get_coords();
-      if (this._resizingEdge !== null) {
+      if (this._scrubbing) {
+        this._updateScrubPosition(stageX);
+      } else if (this._resizingEdge !== null) {
         this._applyResizedWidth(stageX);
       } else {
         const rawX = stageX - this._dragOffsetX;
@@ -910,12 +1146,15 @@ class FloatingOverlayBase extends St.BoxLayout {
       return;
     }
 
+    const wasScrubbing = this._scrubbing;
+    const committedSeekMs = this._scrubTargetMs;
     const wasResizing = this._resizingEdge !== null;
     const committedWidth = this._resizeCurrentWidth;
     const resizeMonitorIndex = this._resizeMonitorIndex;
 
     this._dragging = false;
     this._resizingEdge = null;
+    this._scrubbing = false;
     this._releaseInteractionGrab();
     this.remove_style_class_name('lyric-overlay-floating-dragging');
     this._leftResizeHandle?.remove_style_class_name('lyric-overlay-resize-handle-active');
@@ -925,9 +1164,19 @@ class FloatingOverlayBase extends St.BoxLayout {
     applyActorCursor(this._lyricsViewport, Clutter.CursorType?.GRAB);
 
     if (!commit) {
+      if (wasScrubbing) {
+        this._redrawProgressBar();
+      }
       if (wasResizing && this._lastViewModel !== null) {
         this.set_width(this._lastViewModel.preserveWidth ? this._lastViewModel.maxWidth : -1);
       }
+      return;
+    }
+
+    if (wasScrubbing) {
+      this._progressPositionMs = committedSeekMs;
+      this._redrawProgressBar();
+      this._onSeekCommitted?.(committedSeekMs);
       return;
     }
 
@@ -1052,6 +1301,13 @@ class FloatingOverlayBase extends St.BoxLayout {
     this._prevLabel = null;
     this._currentLabel = null;
     this._nextLabel = null;
+    this._elapsedLabel = null;
+    this._durationLabel = null;
+    this._progressTrackBg = null;
+    this._progressFill = null;
+    this._progressKnob = null;
+    this._progressTrackContainer = null;
+    this._progressRow = null;
     this._playPauseIcon = null;
     this._prevButton = null;
     this._playPauseButton = null;
@@ -1061,6 +1317,7 @@ class FloatingOverlayBase extends St.BoxLayout {
     this._onPositionCommitted = null;
     this._onWidthCommitted = null;
     this._onPlaybackAction = null;
+    this._onSeekCommitted = null;
     super.destroy();
   }
 }

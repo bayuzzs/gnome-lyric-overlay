@@ -239,6 +239,62 @@ export class PlayerProxy {
   }
 
   /**
+   * Seeks playback to `targetPositionMs` using MPRIS `SetPosition` when a valid
+   * D-Bus object path trackId is available, falling back to relative `Seek`.
+   *
+   * @param {string | null} trackId
+   * @param {number} targetPositionMs
+   * @param {number | null} currentPositionMs
+   * @returns {void}
+   */
+  seekTo(trackId, targetPositionMs, currentPositionMs) {
+    if (
+      !this.#enabled ||
+      this.#gone ||
+      this.#cancellable === null ||
+      !Number.isFinite(targetPositionMs) ||
+      targetPositionMs < 0
+    ) {
+      return;
+    }
+
+    const useSetPosition = typeof trackId === 'string' && trackId.startsWith('/');
+    const method = useSetPosition ? 'SetPosition' : 'Seek';
+    const parameters = useSetPosition
+      ? new GLib.Variant('(ox)', [trackId, Math.round(targetPositionMs * 1000)])
+      : new GLib.Variant('(x)', [Math.round((targetPositionMs - (currentPositionMs ?? 0)) * 1000)]);
+
+    this.#connection.call(
+      this.#busName,
+      PLAYER_PATH,
+      PLAYER_IFACE,
+      method,
+      parameters,
+      null,
+      Gio.DBusCallFlags.NONE,
+      -1,
+      this.#cancellable,
+      /**
+       * @param {unknown} _source
+       * @param {unknown} result
+       * @returns {void}
+       */
+      (_source, result) => {
+        if (!this.#enabled || this.#gone) {
+          return;
+        }
+        try {
+          this.#connection.call_finish(result);
+        } catch (error) {
+          if (!isCancelledError(error)) {
+            this.#logger?.debug('playback-seek-failed', { busName: this.#busName, method });
+          }
+        }
+      },
+    );
+  }
+
+  /**
    * @param {any} proxy
    * @returns {void}
    */

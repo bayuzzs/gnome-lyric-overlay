@@ -23,6 +23,7 @@ const requiredKeys = [
   'floating-show-vinyl',
   'floating-show-track-info',
   'floating-show-controls',
+  'floating-show-progress',
   'floating-font-size',
   'floating-bg-opacity',
   'floating-animate',

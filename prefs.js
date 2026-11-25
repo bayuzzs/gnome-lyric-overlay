@@ -218,6 +218,14 @@ function buildDisplayPage(settings, connections) {
   floatingGroup.add(
     createSwitchRow(
       settings,
+      'floating-show-progress',
+      'Interactive progress seekbar',
+      'Show song progress bar with timestamps; click or drag to seek playback.',
+    ),
+  );
+  floatingGroup.add(
+    createSwitchRow(
+      settings,
       'floating-animate',
       'Smooth vertical slide transitions',
       'Glide lyrics smoothly from bottom to top when lines change.',

@@ -173,6 +173,10 @@ declare module 'gi://St' {
     contains(descendant: unknown): boolean;
     set_position(x: number, y: number): void;
     set_width(width: number): void;
+    set_height(height: number): void;
+    get_width(): number;
+    get_transformed_position(): [number, number];
+    add_child(actor: unknown): void;
     set_pivot_point(x: number, y: number): void;
     set_cursor_type?(cursorType: number): void;
     set_style(style: string): void;

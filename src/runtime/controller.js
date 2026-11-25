@@ -66,6 +66,7 @@ import { SettingsAdapter } from './settings.js';
  *
  * @typedef {Readonly<{
  *   render(viewModel: FloatingViewModel): void,
+ *   updateProgress(positionMs: number | null, durationMs: number | null): void,
  *   reposition(): void,
  *   setPositionCommittedHandler(
  *     callback: ((xRatio: number, yRatio: number, monitorIndex: number) => void) | null,
@@ -78,6 +79,7 @@ import { SettingsAdapter } from './settings.js';
  *   setPlaybackActionHandler(
  *     callback: ((action: import('../domain/mpris/types.js').PlaybackAction) => void) | null,
  *   ): void,
+ *   setSeekCommittedHandler(callback: ((positionMs: number) => void) | null): void,
  *   destroy(): void,
  * }>} FloatingOverlayHandle
  *
@@ -250,6 +252,14 @@ export class LyricOverlayController {
         this.#refreshSyncedPosition();
       }
 
+      if (
+        previous !== null &&
+        (previous.floatingShowProgress !== settings.floatingShowProgress ||
+          previous.displayMode !== settings.displayMode)
+      ) {
+        this.#updateSyncLoop();
+      }
+
       this.#refreshDisplay();
     });
 
@@ -416,6 +426,9 @@ export class LyricOverlayController {
     });
     overlay.setPlaybackActionHandler((action) => {
       this.#invokePlaybackAction(action);
+    });
+    overlay.setSeekCommittedHandler((positionMs) => {
+      this.#seekTo(positionMs);
     });
 
     Main.layoutManager.uiGroup.add_child(overlay);
@@ -680,6 +693,40 @@ export class LyricOverlayController {
   }
 
   /**
+   * @param {number} targetPositionMs
+   * @returns {void}
+   */
+  #seekTo(targetPositionMs) {
+    const player = this.#activePlayer;
+    if (!this.#enabled || player === null) {
+      return;
+    }
+
+    const tracked = this.#proxies.get(player.busName);
+    if (tracked === undefined) {
+      return;
+    }
+
+    const nowMs = monotonicNowMs();
+    const currentPosMs =
+      this.#syncedClock !== null ? getInterpolatedClockPosition(this.#syncedClock, nowMs) : null;
+    tracked.proxy.seekTo(player.trackId, targetPositionMs, currentPosMs);
+
+    const trackKey = this.#buildPositionTrackKey(player, this.#currentLookup);
+    this.#syncPositionOffsetMs = null;
+    this.#lastAcceptedSyncPositionMs = targetPositionMs;
+    this.#syncPositionEstimate = null;
+    this.#syncedClock = Object.freeze({
+      trackKey,
+      basePositionMs: Math.max(0, targetPositionMs),
+      baseTimestampMs: nowMs,
+      lastSampledRawMs: Math.max(0, targetPositionMs),
+      playbackStatus: player.playbackStatus,
+    });
+    this.#advanceSyncedLyrics(nowMs);
+  }
+
+  /**
    * @returns {void}
    */
   #refreshSyncedPosition() {
@@ -714,8 +761,9 @@ export class LyricOverlayController {
    * @returns {void}
    */
   #updateSyncLoop() {
-    if (!this.#shouldPollSyncedLyrics()) {
+    if (!this.#shouldTrackPosition()) {
       this.#stopSyncLoop();
+      this.#syncFloatingProgress();
       return;
     }
 
@@ -728,10 +776,11 @@ export class LyricOverlayController {
     this.#lastPollTimeMs = monotonicNowMs();
     this.#pollSyncedPosition();
     this.#syncSourceId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SYNC_TICK_INTERVAL_MS, () => {
-      if (!this.#shouldPollSyncedLyrics()) {
+      if (!this.#shouldTrackPosition()) {
         this.#syncSourceId = 0;
         this.#lastSyncedSignature = null;
         this.#resetSyncPositionOffset();
+        this.#syncFloatingProgress();
         return GLib.SOURCE_REMOVE;
       }
       const nowMs = monotonicNowMs();
@@ -757,6 +806,54 @@ export class LyricOverlayController {
   }
 
   /**
+   * @returns {boolean}
+   */
+  #shouldTrackPosition() {
+    if (this.#shouldPollSyncedLyrics()) {
+      return true;
+    }
+
+    return (
+      this.#enabled &&
+      this.#activePlayer !== null &&
+      this.#floatingOverlay !== null &&
+      this.#currentSettings?.floatingShowProgress === true &&
+      this.#resolveTrackDurationMs() !== null
+    );
+  }
+
+  /**
+   * @returns {number | null}
+   */
+  #resolveTrackDurationMs() {
+    const playerDuration = this.#activePlayer?.durationMs;
+    if (
+      typeof playerDuration === 'number' &&
+      Number.isFinite(playerDuration) &&
+      playerDuration > 0
+    ) {
+      return playerDuration;
+    }
+
+    const lookup = this.#currentLookup;
+    if (
+      lookup !== null &&
+      (lookup.kind === 'synced' || lookup.kind === 'plain' || lookup.kind === 'instrumental')
+    ) {
+      const providerDuration = lookup.track.durationMs;
+      if (
+        typeof providerDuration === 'number' &&
+        Number.isFinite(providerDuration) &&
+        providerDuration > 0
+      ) {
+        return providerDuration;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * @returns {void}
    */
   #stopSyncLoop() {
@@ -778,13 +875,19 @@ export class LyricOverlayController {
    */
   #advanceSyncedLyrics(nowMs) {
     const player = this.#activePlayer;
-    const lookup = this.#currentLookup;
-    if (player === null || lookup?.kind !== 'synced' || this.#syncedClock === null) {
+    if (player === null || this.#syncedClock === null) {
       return;
     }
 
     const interpolatedPositionMs = getInterpolatedClockPosition(this.#syncedClock, nowMs);
-    this.#applySyncedDisplayPosition(player, lookup, interpolatedPositionMs);
+    const lookup = this.#currentLookup;
+    if (lookup?.kind === 'synced') {
+      this.#applySyncedDisplayPosition(player, lookup, interpolatedPositionMs);
+    }
+
+    if (this.#floatingOverlay !== null) {
+      this.#floatingOverlay.updateProgress(interpolatedPositionMs, this.#resolveTrackDurationMs());
+    }
   }
 
   /**
@@ -816,7 +919,7 @@ export class LyricOverlayController {
   #pollSyncedPosition() {
     const player = this.#activePlayer;
     const lookup = this.#currentLookup;
-    if (player === null || lookup?.kind !== 'synced') {
+    if (player === null || !this.#shouldTrackPosition()) {
       return;
     }
 
@@ -827,7 +930,7 @@ export class LyricOverlayController {
 
     tracked.proxy.readPosition((positionMs) => {
       if (
-        !this.#shouldPollSyncedLyrics() ||
+        !this.#shouldTrackPosition() ||
         this.#activePlayer !== player ||
         this.#currentLookup !== lookup ||
         positionMs === null
@@ -835,13 +938,16 @@ export class LyricOverlayController {
         return;
       }
 
-      const effectivePositionMs = this.#resolveSyncedPosition(player, lookup, positionMs);
+      const effectivePositionMs =
+        lookup?.kind === 'synced'
+          ? this.#resolveSyncedPosition(player, lookup, positionMs)
+          : Math.max(0, positionMs);
       if (effectivePositionMs === null) {
         return;
       }
 
       const nowMs = monotonicNowMs();
-      const trackKey = this.#buildSyncPositionTrackKey(player, lookup);
+      const trackKey = this.#buildPositionTrackKey(player, lookup);
       this.#syncedClock = updateSyncedClock(this.#syncedClock, {
         trackKey,
         rawPositionMs: effectivePositionMs,
@@ -924,6 +1030,18 @@ export class LyricOverlayController {
 
   /**
    * @param {PlayerSnapshot} player
+   * @param {LyricsProviderResult | null} lookup
+   * @returns {string}
+   */
+  #buildPositionTrackKey(player, lookup) {
+    if (lookup?.kind === 'synced') {
+      return this.#buildSyncPositionTrackKey(player, lookup);
+    }
+    return [player.busName, player.title, player.artist].join('\u0000');
+  }
+
+  /**
+   * @param {PlayerSnapshot} player
    * @param {Extract<LyricsProviderResult, { kind: 'synced' }>} lookup
    * @returns {string}
    */
@@ -983,6 +1101,22 @@ export class LyricOverlayController {
   /**
    * @returns {void}
    */
+  #syncFloatingProgress() {
+    if (this.#floatingOverlay === null) {
+      return;
+    }
+
+    const durationMs = this.#resolveTrackDurationMs();
+    const positionMs =
+      this.#syncedClock !== null
+        ? getInterpolatedClockPosition(this.#syncedClock, monotonicNowMs())
+        : null;
+    this.#floatingOverlay.updateProgress(positionMs, durationMs);
+  }
+
+  /**
+   * @returns {void}
+   */
   #render() {
     if (!this.#currentSettings) {
       return;
@@ -995,6 +1129,7 @@ export class LyricOverlayController {
         this.#readFloatingEnvironment(),
       );
       this.#floatingOverlay.render(viewModel);
+      this.#syncFloatingProgress();
       return;
     }
 
