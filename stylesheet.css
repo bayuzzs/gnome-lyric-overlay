@@ -1,0 +1,169 @@
+/* Fixed Top-Bar Indicator */
+.lyric-overlay-panel-container {
+  spacing: 4px;
+}
+
+.lyric-overlay-panel-label {
+  min-width: 1px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.lyric-overlay-tray-button {
+  -natural-hpadding: 0px;
+  -minimum-hpadding: 0px;
+  padding-left: 0px;
+  padding-right: 0px;
+  width: 34px;
+}
+
+/* Floating Desktop Overlay (Left Handle | 3-Tier Body | Right Handle) */
+.lyric-overlay-floating {
+  border-radius: 20px;
+  padding: 0px;
+  spacing: 0px;
+}
+
+.lyric-overlay-floating-unlocked:hover {
+  border: 1px solid rgba(255, 255, 255, 0.34);
+}
+
+.lyric-overlay-floating-dragging {
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+
+.lyric-overlay-body {
+  padding: 12px 10px;
+  spacing: 10px;
+}
+
+/* Left & Right Horizontal Edge Resize Handles */
+.lyric-overlay-resize-handle {
+  width: 10px;
+  background-color: transparent;
+  transition-duration: 120ms;
+}
+
+.lyric-overlay-resize-left {
+  border-radius: 20px 0px 0px 20px;
+}
+
+.lyric-overlay-resize-right {
+  border-radius: 0px 20px 20px 0px;
+}
+
+.lyric-overlay-resize-handle:hover,
+.lyric-overlay-resize-handle-active {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Top Tier: Spinning Vinyl + Song Title & Album */
+.lyric-overlay-header {
+  spacing: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.lyric-overlay-vinyl-disc {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  padding: 5px;
+  background-gradient-direction: vertical;
+  background-gradient-start: #262832;
+  background-gradient-end: #0c0d11;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.55);
+}
+
+.lyric-overlay-vinyl-cover {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background-gradient-direction: vertical;
+  background-gradient-start: #1db954;
+  background-gradient-end: #146c36;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.lyric-overlay-vinyl-spindle {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background-color: #0e1015;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+
+.lyric-overlay-track-meta {
+  spacing: 1px;
+}
+
+.lyric-overlay-track-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.lyric-overlay-track-subtitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.62);
+  text-shadow: 0px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Middle Tier: Full-width Clipped Lyrics Conveyor */
+.lyric-overlay-lyrics-viewport {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.lyric-overlay-lyrics-track {
+  spacing: 4px;
+}
+
+.lyric-overlay-line-current {
+  font-weight: 700;
+}
+
+.lyric-overlay-line-secondary {
+  font-weight: 500;
+}
+
+/* Bottom Tier: Centered Playback Controls */
+.lyric-overlay-controls {
+  spacing: 10px;
+  padding-top: 4px;
+}
+
+.lyric-overlay-control-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background-color: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.88);
+  transition-duration: 150ms;
+}
+
+.lyric-overlay-control-button:hover {
+  background-color: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.lyric-overlay-control-button:active {
+  background-color: rgba(255, 255, 255, 0.34);
+}
+
+.lyric-overlay-control-primary {
+  width: 34px;
+  height: 34px;
+  background-color: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  color: #ffffff;
+}
+
+.lyric-overlay-control-primary:hover {
+  background-color: rgba(255, 255, 255, 0.34);
+}

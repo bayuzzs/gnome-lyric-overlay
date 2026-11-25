@@ -1,0 +1,9 @@
+{
+  "uuid": "lyric-overlay@bayuzzs.github.io",
+  "name": "GNOME Lyric Overlay",
+  "version-name": "0.1.0",
+  "description": "Synced live lyrics as a floating desktop overlay or GNOME top-bar indicator for MPRIS-compatible music players.",
+  "shell-version": ["46", "47", "48", "49", "50", "51"],
+  "url": "https://github.com/bayuzzs/gnome-lyric-overlay",
+  "settings-schema": "org.gnome.shell.extensions.lyric-overlay"
+}

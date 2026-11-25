@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.lyric-overlay" path="/org/gnome/shell/extensions/lyric-overlay/">
+    <!-- Display Mode & Visibility -->
+    <key name="display-mode" type="s">
+      <default>'floating'</default>
+      <summary>Display mode</summary>
+      <description>Whether to display lyrics as a floating desktop overlay ('floating') or in the GNOME top bar ('panel').</description>
+    </key>
+    <key name="lyrics-visible" type="b">
+      <default>true</default>
+      <summary>Show lyrics</summary>
+      <description>Master visibility toggle for lyric display.</description>
+    </key>
+    <key name="fallback-mode" type="s">
+      <default>'track'</default>
+      <summary>Fallback mode</summary>
+      <description>Display behavior when synced lyrics are unavailable ('track', 'idle', or 'hidden').</description>
+    </key>
+
+    <!-- Floating Overlay -->
+    <key name="floating-locked" type="b">
+      <default>false</default>
+      <summary>Lock floating overlay</summary>
+      <description>When enabled, the floating overlay is click-through and cannot be dragged.</description>
+    </key>
+    <key name="floating-lines" type="i">
+      <default>2</default>
+      <range min="1" max="3"/>
+      <summary>Floating lyric lines</summary>
+      <description>Number of lyric lines shown in floating mode (1 = current, 2 = current + next, 3 = previous + current + next).</description>
+    </key>
+    <key name="floating-x-ratio" type="d">
+      <default>0.5</default>
+      <range min="0.0" max="1.0"/>
+      <summary>Floating horizontal ratio</summary>
+      <description>Normalized horizontal position (0.0 to 1.0) within the target monitor workarea.</description>
+    </key>
+    <key name="floating-y-ratio" type="d">
+      <default>0.88</default>
+      <range min="0.0" max="1.0"/>
+      <summary>Floating vertical ratio</summary>
+      <description>Normalized vertical position (0.0 to 1.0) within the target monitor workarea.</description>
+    </key>
+    <key name="floating-monitor-index" type="i">
+      <default>-1</default>
+      <range min="-1" max="15"/>
+      <summary>Floating monitor index</summary>
+      <description>Target monitor index for the floating overlay (-1 uses the primary monitor).</description>
+    </key>
+    <key name="floating-max-width" type="i">
+      <default>640</default>
+      <range min="280" max="1600"/>
+      <summary>Floating overlay width</summary>
+      <description>Width (or maximum width) in pixels for the floating lyric overlay.</description>
+    </key>
+    <key name="floating-preserve-width" type="b">
+      <default>true</default>
+      <summary>Preserve fixed width</summary>
+      <description>Keep the floating overlay at a constant width to prevent horizontal layout shifting between short and long lyric lines.</description>
+    </key>
+    <key name="floating-show-vinyl" type="b">
+      <default>true</default>
+      <summary>Show spinning vinyl album art</summary>
+      <description>Display a spinning vinyl record with the current track's album cover on the floating overlay.</description>
+    </key>
+    <key name="floating-show-track-info" type="b">
+      <default>true</default>
+      <summary>Show song title and album</summary>
+      <description>Display the current song title, artist, and album name in the floating overlay header.</description>
+    </key>
+    <key name="floating-show-controls" type="b">
+      <default>true</default>
+      <summary>Show playback controls</summary>
+      <description>Display Previous, Play/Pause, and Next controls on the floating overlay.</description>
+    </key>
+    <key name="floating-font-size" type="i">
+      <default>18</default>
+      <range min="12" max="36"/>
+      <summary>Floating font size</summary>
+      <description>Font size in pixels for the active lyric line in floating mode.</description>
+    </key>
+    <key name="floating-bg-opacity" type="i">
+      <default>55</default>
+      <range min="0" max="100"/>
+      <summary>Floating background opacity</summary>
+      <description>Background pill opacity percentage (0 = pure transparent subtitle style, 100 = solid dark pill).</description>
+    </key>
+    <key name="floating-animate" type="b">
+      <default>true</default>
+      <summary>Animate lyric transitions</summary>
+      <description>Enable smooth fade/slide transitions when lyric lines change in floating mode.</description>
+    </key>
+    <key name="floating-hide-fullscreen" type="b">
+      <default>true</default>
+      <summary>Hide in fullscreen</summary>
+      <description>Automatically hide the floating overlay when a window is fullscreen on its monitor.</description>
+    </key>
+    <key name="floating-hide-paused" type="b">
+      <default>false</default>
+      <summary>Hide when paused</summary>
+      <description>Automatically hide the floating overlay when media playback is paused.</description>
+    </key>
+
+    <!-- Fixed Top Bar -->
+    <key name="panel-position" type="s">
+      <default>'center'</default>
+      <summary>Panel position</summary>
+      <description>Where the indicator is placed in the GNOME top bar ('left', 'center', or 'right').</description>
+    </key>
+    <key name="panel-index" type="i">
+      <default>0</default>
+      <range min="-1" max="20"/>
+      <summary>Panel index</summary>
+      <description>0-based order within the selected top-bar panel box (-1 appends to the end).</description>
+    </key>
+    <key name="panel-max-width" type="i">
+      <default>360</default>
+      <range min="120" max="720"/>
+      <summary>Top-bar maximum width</summary>
+      <description>Maximum width in pixels for the top-bar lyric label.</description>
+    </key>
+
+    <!-- Shared Typography & Appearance -->
+    <key name="text-align" type="s">
+      <default>'center'</default>
+      <summary>Text alignment</summary>
+      <description>Horizontal alignment of lyric text ('left', 'center', or 'right').</description>
+    </key>
+    <key name="style-text-color-type" type="s">
+      <default>'default'</default>
+      <summary>Text color preset type</summary>
+      <description>Text color preset ('default', 'system', 'white', 'black', or 'custom').</description>
+    </key>
+    <key name="style-text-color-custom" type="s">
+      <default>'#ffffff'</default>
+      <summary>Custom text color</summary>
+      <description>Custom HEX color code when text color preset is 'custom'.</description>
+    </key>
+    <key name="style-secondary-opacity" type="i">
+      <default>55</default>
+      <range min="20" max="90"/>
+      <summary>Secondary line opacity</summary>
+      <description>Opacity percentage for previous and next context lyric lines in floating mode.</description>
+    </key>
+    <key name="style-text-shadow" type="b">
+      <default>true</default>
+      <summary>Text drop shadow</summary>
+      <description>Enable drop shadow behind lyric text for readability.</description>
+    </key>
+
+    <!-- Behavior & MPRIS -->
+    <key name="lyrics-offset-ms" type="i">
+      <default>0</default>
+      <range min="-5000" max="5000"/>
+      <summary>Lyrics timing offset</summary>
+      <description>Shift synced lyrics earlier (negative) or later (positive) in milliseconds.</description>
+    </key>
+    <key name="player-priority" type="as">
+      <default>['spotify']</default>
+      <summary>Player priority</summary>
+      <description>Preferred MPRIS player bus-name fragments, in priority order.</description>
+    </key>
+    <key name="browser-player-service" type="s">
+      <default>'auto'</default>
+      <summary>Browser player service</summary>
+      <description>How browser MPRIS players should be interpreted ('auto', 'spotify', 'youtube-music', 'apple-music', or 'generic').</description>
+    </key>
+    <key name="cache-enabled" type="b">
+      <default>true</default>
+      <summary>Cache lyrics</summary>
+      <description>Whether lyric lookup results should be cached locally.</description>
+    </key>
+    <key name="debug-logging" type="b">
+      <default>false</default>
+      <summary>Debug logging</summary>
+      <description>Whether verbose diagnostic logging should be enabled.</description>
+    </key>
+
+    <!-- Global Keyboard Shortcuts -->
+    <key name="shortcut-toggle-mode" type="as">
+      <default>['&lt;Super&gt;&lt;Alt&gt;m']</default>
+      <summary>Toggle display mode shortcut</summary>
+      <description>Keyboard shortcut to switch between Floating Overlay and Top Bar mode.</description>
+    </key>
+    <key name="shortcut-toggle-lock" type="as">
+      <default>['&lt;Super&gt;&lt;Alt&gt;l']</default>
+      <summary>Toggle floating lock shortcut</summary>
+      <description>Keyboard shortcut to toggle click-through lock on the floating overlay.</description>
+    </key>
+    <key name="shortcut-toggle-visible" type="as">
+      <default>['&lt;Super&gt;&lt;Alt&gt;h']</default>
+      <summary>Toggle lyrics visibility shortcut</summary>
+      <description>Keyboard shortcut to show or hide lyrics.</description>
+    </key>
+  </schema>
+</schemalist>

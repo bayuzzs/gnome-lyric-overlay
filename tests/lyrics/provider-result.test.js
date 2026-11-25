@@ -1,0 +1,583 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  parseBestSyncedLrclibSearchResponse,
+  parseLrclibResponse,
+} from '../../src/domain/lyrics/provider-result.js';
+
+describe('parseLrclibResponse', () => {
+  it('returns synced lyrics with plain fallback when both are present', () => {
+    const result = parseLrclibResponse({
+      trackName: 'Yellow',
+      artistName: 'Coldplay',
+      albumName: 'Parachutes',
+      duration: 266.773,
+      instrumental: false,
+      plainLyrics: 'Look at the stars\nLook how they shine for you',
+      syncedLyrics: '[00:01.00]Look at the stars\n[00:04.50]Look how they shine for you',
+    });
+
+    expect(result).toEqual({
+      kind: 'synced',
+      track: {
+        trackName: 'Yellow',
+        artistName: 'Coldplay',
+        albumName: 'Parachutes',
+        durationMs: 266773,
+      },
+      lines: [
+        { timeMs: 1000, text: 'Look at the stars' },
+        { timeMs: 4500, text: 'Look how they shine for you' },
+      ],
+      plainText: 'Look at the stars\nLook how they shine for you',
+    });
+  });
+
+  it('returns synced lyrics with empty plainText when only synced is present', () => {
+    const result = parseLrclibResponse({
+      trackName: 'Song',
+      artistName: 'Artist',
+      syncedLyrics: '[00:01.00]Line one\n[00:02.00]Line two',
+    });
+
+    expect(result.kind).toBe('synced');
+    if (result.kind === 'synced') {
+      expect(result.lines).toHaveLength(2);
+      expect(result.plainText).toBe('');
+    }
+  });
+
+  it('returns plain lyrics when only plain is present', () => {
+    const result = parseLrclibResponse({
+      trackName: 'Song',
+      artistName: 'Artist',
+      plainLyrics: 'Line one\nLine two',
+    });
+
+    expect(result).toEqual({
+      kind: 'plain',
+      track: {
+        trackName: 'Song',
+        artistName: 'Artist',
+        albumName: '',
+        durationMs: null,
+      },
+      text: 'Line one\nLine two',
+    });
+  });
+
+  it('returns instrumental result when the flag is true', () => {
+    const result = parseLrclibResponse({
+      trackName: 'Atmosphere',
+      artistName: 'Joy Division',
+      instrumental: true,
+      syncedLyrics: '[00:01.00]Should be ignored',
+      plainLyrics: 'Should also be ignored',
+    });
+
+    expect(result).toEqual({
+      kind: 'instrumental',
+      track: {
+        trackName: 'Atmosphere',
+        artistName: 'Joy Division',
+        albumName: '',
+        durationMs: null,
+      },
+    });
+  });
+
+  it('returns not-found for an HTTP 404 response body', () => {
+    expect(
+      parseLrclibResponse({
+        statusCode: 404,
+        name: 'TrackNotFound',
+        message: 'Failed to find specified track',
+      }),
+    ).toEqual({ kind: 'not-found' });
+  });
+
+  it('returns not-found for an empty object', () => {
+    expect(parseLrclibResponse({})).toEqual({ kind: 'not-found' });
+  });
+
+  it('returns not-found for null and undefined input', () => {
+    expect(parseLrclibResponse(null)).toEqual({ kind: 'not-found' });
+    expect(parseLrclibResponse(undefined)).toEqual({ kind: 'not-found' });
+  });
+
+  it('returns an error result for non-object input', () => {
+    expect(parseLrclibResponse('not json')).toEqual({
+      kind: 'error',
+      reason: 'response was not a JSON object',
+    });
+    expect(parseLrclibResponse(42)).toEqual({
+      kind: 'error',
+      reason: 'response was not a JSON object',
+    });
+  });
+
+  it('returns an error result for a 500-level provider failure', () => {
+    expect(
+      parseLrclibResponse({
+        statusCode: 500,
+        name: 'InternalError',
+      }),
+    ).toEqual({
+      kind: 'error',
+      reason: 'status 500: InternalError',
+    });
+  });
+
+  it('falls back to plain lyrics when synced body has no parseable lines', () => {
+    const result = parseLrclibResponse({
+      trackName: 'Song',
+      artistName: 'Artist',
+      syncedLyrics: '[ar:Artist]\n[ti:Song]\n[al:Album]',
+      plainLyrics: 'Line one',
+    });
+
+    expect(result).toEqual({
+      kind: 'plain',
+      track: {
+        trackName: 'Song',
+        artistName: 'Artist',
+        albumName: '',
+        durationMs: null,
+      },
+      text: 'Line one',
+    });
+  });
+
+  it('returns not-found when synced parsing fails and no plain text exists', () => {
+    expect(
+      parseLrclibResponse({
+        trackName: 'Song',
+        artistName: 'Artist',
+        syncedLyrics: '[ar:Artist]\n[ti:Song]',
+      }),
+    ).toEqual({ kind: 'not-found' });
+  });
+
+  it('parses a realistic LRCLIB-style payload with metadata tags and synced lines', () => {
+    // Fixture mirrors the public LRCLIB API shape returned for matched tracks.
+    const result = parseLrclibResponse({
+      id: 1234,
+      trackName: 'In This Shirt',
+      artistName: 'The Irrepressibles',
+      albumName: 'Mirror Mirror',
+      duration: 335.146,
+      instrumental: false,
+      plainLyrics: 'In this shirt\nI can be you\nIn this shirt\nI can\u2019t lose',
+      syncedLyrics: [
+        '[ar:The Irrepressibles]',
+        '[ti:In This Shirt]',
+        '[al:Mirror Mirror]',
+        '[length:05:35.14]',
+        '[00:14.20]In this shirt',
+        '[00:18.00]I can be you',
+        '[00:21.50]In this shirt',
+        '[00:25.10]I can\u2019t lose',
+      ].join('\n'),
+    });
+
+    expect(result.kind).toBe('synced');
+    if (result.kind === 'synced') {
+      expect(result.track).toEqual({
+        trackName: 'In This Shirt',
+        artistName: 'The Irrepressibles',
+        albumName: 'Mirror Mirror',
+        durationMs: 335146,
+      });
+      expect(result.lines).toEqual([
+        { timeMs: 14200, text: 'In this shirt' },
+        { timeMs: 18000, text: 'I can be you' },
+        { timeMs: 21500, text: 'In this shirt' },
+        { timeMs: 25100, text: 'I can\u2019t lose' },
+      ]);
+      expect(result.plainText).toBe(
+        'In this shirt\nI can be you\nIn this shirt\nI can\u2019t lose',
+      );
+    }
+  });
+
+  it('drops invalid duration values to null', () => {
+    const result = parseLrclibResponse({
+      trackName: 'Song',
+      artistName: 'Artist',
+      duration: -1,
+      plainLyrics: 'Line',
+    });
+
+    expect(result.kind).toBe('plain');
+    if (result.kind === 'plain') {
+      expect(result.track.durationMs).toBeNull();
+    }
+  });
+});
+
+describe('parseBestSyncedLrclibSearchResponse', () => {
+  it('selects a safe synced search fallback when exact LRCLIB lookup only has plain lyrics', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          id: 24305660,
+          trackName: 'Tewas Tertimbun Masa Lalu ( TTM )',
+          artistName: 'NDX A.K.A.',
+          albumName: '',
+          duration: 244,
+          plainLyrics: 'Kowe tau neng uripku',
+        },
+        {
+          id: 32784779,
+          trackName: 'Tewas Tertimbun Masa Lalu',
+          artistName: 'NDX A.K.A.',
+          albumName: 'NDX A.K.A. Familia',
+          duration: 244,
+          syncedLyrics: '[00:07.56] Kowe tau ning uripku\n[00:11.18] Tansah ana ning atiku',
+          plainLyrics: 'Kowe tau ning uripku\nTansah ana ning atiku',
+        },
+      ],
+      {
+        artist: 'NDX A.K.A.',
+        title: 'Tewas Tertimbun Masa Lalu (TTM)',
+        album: 'NDX A.K.A. Familia',
+        durationMs: 244297,
+      },
+    );
+
+    expect(result?.kind).toBe('synced');
+    if (result?.kind === 'synced') {
+      expect(result.track.trackName).toBe('Tewas Tertimbun Masa Lalu');
+      expect(result.lines).toEqual([
+        { timeMs: 7560, text: 'Kowe tau ning uripku' },
+        { timeMs: 11180, text: 'Tansah ana ning atiku' },
+      ]);
+    }
+  });
+
+  it('rejects synced search candidates with a duration that is too far from the active track', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: 'Tewas Tertimbun Masa Lalu',
+          artistName: 'NDX A.K.A.',
+          albumName: 'NDX A.K.A. Familia',
+          duration: 262,
+          syncedLyrics: '[00:09.48] Kowe tau neng uripku',
+        },
+      ],
+      {
+        artist: 'NDX A.K.A.',
+        title: 'Tewas Tertimbun Masa Lalu (TTM)',
+        album: 'NDX A.K.A. Familia',
+        durationMs: 244297,
+      },
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it('accepts synced search candidates when query duration is unknown', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: 'Radioactive',
+          artistName: 'Imagine Dragons',
+          albumName: '.',
+          duration: 186,
+          syncedLyrics: '[00:01.00] Radioactive line',
+        },
+      ],
+      {
+        artist: 'Imagine Dragons',
+        title: 'Radioactive',
+        album: 'Night Visions (Deluxe)',
+        durationMs: null,
+      },
+    );
+
+    expect(result?.kind).toBe('synced');
+    if (result?.kind === 'synced') {
+      expect(result.track.trackName).toBe('Radioactive');
+      expect(result.track.durationMs).toBe(186000);
+    }
+  });
+
+  it('rejects search candidates from a different artist', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: 'Tewas Tertimbun Masa Lalu',
+          artistName: 'Nella Kharisma',
+          albumName: 'Nella Kharisma Special NDX',
+          duration: 244,
+          syncedLyrics: '[00:09.48] Kowe tau neng uripku',
+        },
+      ],
+      {
+        artist: 'NDX A.K.A.',
+        title: 'Tewas Tertimbun Masa Lalu (TTM)',
+        album: 'NDX A.K.A. Familia',
+        durationMs: 244297,
+      },
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it('selects a synced candidate for a CJK artist and title', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: '作曲家',
+          artistName: '李荣浩',
+          albumName: '李荣浩',
+          duration: 228,
+          syncedLyrics: '[00:09.68] 又很久没见',
+        },
+        {
+          trackName: '作曲家',
+          artistName: '其他歌手',
+          albumName: '',
+          duration: 228,
+          syncedLyrics: '[00:01.00] 别的歌词',
+        },
+      ],
+      {
+        artist: '李荣浩',
+        title: '作曲家',
+        album: '',
+        durationMs: 228000,
+      },
+    );
+
+    expect(result?.kind).toBe('synced');
+    if (result?.kind === 'synced') {
+      expect(result.track.trackName).toBe('作曲家');
+      expect(result.track.artistName).toBe('李荣浩');
+    }
+  });
+
+  it('selects a synced candidate for a Cyrillic artist and title', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: 'Звезда',
+          artistName: 'Кино',
+          albumName: 'Последний герой',
+          duration: 210,
+          syncedLyrics: '[00:05.00] И снова',
+        },
+      ],
+      {
+        artist: 'Кино',
+        title: 'Звезда',
+        album: '',
+        durationMs: null,
+      },
+    );
+
+    expect(result?.kind).toBe('synced');
+    if (result?.kind === 'synced') {
+      expect(result.track.artistName).toBe('Кино');
+    }
+  });
+
+  it('selects a synced candidate for a Hangul artist and title', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: '밤편지',
+          artistName: '아이유',
+          albumName: 'Palette',
+          duration: 253,
+          syncedLyrics: '[00:01.00] 이 밤 그날의 반딧불을',
+        },
+      ],
+      {
+        artist: '아이유',
+        title: '밤편지',
+        album: 'Palette',
+        durationMs: 253000,
+      },
+    );
+
+    expect(result?.kind).toBe('synced');
+    if (result?.kind === 'synced') {
+      expect(result.track.artistName).toBe('아이유');
+    }
+  });
+
+  it('keeps voiced and unvoiced kana distinct during artist matching', () => {
+    const query = { artist: 'ガガ', title: 'Song', album: '', durationMs: null };
+    /**
+     * @param {string} artistName
+     * @returns {Readonly<Record<string, unknown>>[]}
+     */
+    const candidates = (artistName) => [
+      {
+        trackName: 'Song',
+        artistName,
+        albumName: '',
+        duration: 180,
+        syncedLyrics: '[00:10.00] Line',
+      },
+    ];
+
+    const voiced = parseBestSyncedLrclibSearchResponse(candidates('ガガ'), query);
+    const unvoiced = parseBestSyncedLrclibSearchResponse(candidates('カカ'), query);
+
+    expect(voiced?.kind).toBe('synced');
+    expect(unvoiced).toBeNull();
+  });
+
+  it('still enforces the duration gate for non-Latin candidates', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: '晴天',
+          artistName: '周杰伦',
+          albumName: '',
+          duration: 262,
+          syncedLyrics: '[00:29.36] 故事的小黃花',
+        },
+      ],
+      {
+        artist: '周杰伦',
+        title: '晴天',
+        album: '',
+        durationMs: 270000,
+      },
+    );
+
+    expect(result).toBeNull();
+  });
+
+  it('still rejects queries whose artist or title normalize to nothing', () => {
+    const candidates = [
+      {
+        trackName: 'Song',
+        artistName: 'Artist',
+        albumName: '',
+        duration: 180,
+        syncedLyrics: '[00:10.00] Line',
+      },
+    ];
+
+    expect(
+      parseBestSyncedLrclibSearchResponse(candidates, {
+        artist: '!!!',
+        title: 'Song',
+        album: '',
+        durationMs: null,
+      }),
+    ).toBeNull();
+    expect(
+      parseBestSyncedLrclibSearchResponse(candidates, {
+        artist: 'Artist',
+        title: '— —',
+        album: '',
+        durationMs: null,
+      }),
+    ).toBeNull();
+  });
+
+  it('keeps Latin diacritic folding during matching', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: 'Ace of Spades',
+          artistName: 'Motorhead',
+          albumName: '',
+          duration: 160,
+          syncedLyrics: '[00:20.00] Line',
+        },
+      ],
+      {
+        artist: 'Motörhead',
+        title: 'Ace of Spades',
+        album: '',
+        durationMs: 160000,
+      },
+    );
+
+    expect(result?.kind).toBe('synced');
+  });
+
+  it('matches a candidate where the title includes artist and YouTube decorations within 5s duration tolerance', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: 'Ghea Indrawari - Melangitkanmu (Official Lyric Video)',
+          artistName: 'Ghea Indrawari',
+          albumName: 'Ghea Indrawari',
+          duration: 275,
+          syncedLyrics: '[00:04.98] Merenungi alam semesta\n[00:10.05] Merintih ke langit',
+        },
+      ],
+      {
+        artist: 'Ghea Indrawari',
+        title: 'Melangitkanmu',
+        album: '',
+        durationMs: 275000,
+      },
+    );
+
+    expect(result?.kind).toBe('synced');
+    if (result?.kind === 'synced') {
+      expect(result.lines).toHaveLength(2);
+      expect(result.lines[0]?.text).toBe('Merenungi alam semesta');
+    }
+  });
+
+  it('matches a candidate when artistName is a channel name but trackName contains the artist', () => {
+    const result = parseBestSyncedLrclibSearchResponse(
+      [
+        {
+          trackName: 'Ghea Indrawari - Melangitkanmu (Official Lyric Video)',
+          artistName: 'HITS Records',
+          albumName: '',
+          duration: 275,
+          syncedLyrics: '[00:04.98] Merenungi alam semesta',
+        },
+      ],
+      {
+        artist: 'Ghea Indrawari',
+        title: 'Melangitkanmu',
+        album: '',
+        durationMs: 275000,
+      },
+    );
+
+    expect(result?.kind).toBe('synced');
+  });
+
+  it('accepts candidates within 5s duration difference and rejects beyond 5s', () => {
+    /** @param {number} duration */
+    const candidates = (duration) => [
+      {
+        trackName: 'Melangitkanmu',
+        artistName: 'Ghea Indrawari',
+        albumName: '',
+        duration,
+        syncedLyrics: '[00:04.98] Line',
+      },
+    ];
+
+    const fourSecDiff = parseBestSyncedLrclibSearchResponse(candidates(279), {
+      artist: 'Ghea Indrawari',
+      title: 'Melangitkanmu',
+      album: '',
+      durationMs: 275000,
+    });
+    expect(fourSecDiff?.kind).toBe('synced');
+
+    const sixSecDiff = parseBestSyncedLrclibSearchResponse(candidates(281), {
+      artist: 'Ghea Indrawari',
+      title: 'Melangitkanmu',
+      album: '',
+      durationMs: 275000,
+    });
+    expect(sixSecDiff).toBeNull();
+  });
+});

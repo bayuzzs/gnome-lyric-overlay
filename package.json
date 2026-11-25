@@ -1,0 +1,38 @@
+{
+  "name": "gnome-lyric-overlay",
+  "version": "0.1.0",
+  "description": "GNOME Shell extension for synced live lyrics as a floating desktop overlay or top-bar indicator.",
+  "license": "MIT",
+  "homepage": "https://github.com/bayuzzs/gnome-lyric-overlay#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bayuzzs/gnome-lyric-overlay.git"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc -p jsconfig.json --noEmit",
+    "verify": "npm run validate:metadata && npm run validate:schema && npm run check:architecture && npm run format:check && npm run lint && npm run typecheck && npm test && npm run build:extension && npm run validate:bundle",
+    "validate:metadata": "node scripts/validate-metadata.mjs",
+    "validate:schema": "node scripts/validate-schema.mjs",
+    "validate:bundle": "node scripts/validate-bundle.mjs",
+    "check:architecture": "node scripts/check-architecture.mjs",
+    "build:extension": "node scripts/build-extension.mjs",
+    "install:local": "npm run build:extension && gnome-extensions install --force dist/lyric-overlay@bayuzzs.github.io.zip"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  }
+}
